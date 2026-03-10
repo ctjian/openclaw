@@ -58,4 +58,14 @@ describe("tool meta formatting", () => {
     expect(formatToolPrefix(undefined, undefined)).toBe("🧩 Tool");
     expect(formatToolPrefix("x", `${home}/a.txt`)).toBe("🧩 X: ~/a.txt");
   });
+
+  it("uses args-aware process titles in aggregates", () => {
+    const out = formatToolAggregate("process", ["cool-pine"], {
+      args: {
+        action: "write",
+        data: JSON.stringify({ action: "navigate", url: "https://example.com" }),
+      },
+    });
+    expect(out).toBe("🧰 Process Navigate: cool-pine");
+  });
 });

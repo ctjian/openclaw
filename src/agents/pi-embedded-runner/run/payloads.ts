@@ -20,10 +20,11 @@ import {
 } from "../../pi-embedded-utils.js";
 import { isLikelyMutatingToolName } from "../../tool-mutation.js";
 
-type ToolMetaEntry = { toolName: string; meta?: string };
+type ToolMetaEntry = { toolName: string; meta?: string; args?: unknown };
 type LastToolError = {
   toolName: string;
   meta?: string;
+  args?: unknown;
   error?: string;
   mutatingAction?: boolean;
   actionFingerprint?: string;
@@ -164,9 +165,10 @@ export function buildEmbeddedRunPayloads(params: {
   const inlineToolResults =
     params.inlineToolResultsAllowed && params.verboseLevel !== "off" && params.toolMetas.length > 0;
   if (inlineToolResults) {
-    for (const { toolName, meta } of params.toolMetas) {
+    for (const { toolName, meta, args } of params.toolMetas) {
       const agg = formatToolAggregate(toolName, meta ? [meta] : [], {
         markdown: useMarkdown,
+        args,
       });
       const {
         text: cleanedText,
@@ -297,7 +299,7 @@ export function buildEmbeddedRunPayloads(params: {
       const toolSummary = formatToolAggregate(
         params.lastToolError.toolName,
         params.lastToolError.meta ? [params.lastToolError.meta] : undefined,
-        { markdown: useMarkdown },
+        { markdown: useMarkdown, args: params.lastToolError.args },
       );
       const errorSuffix =
         warningPolicy.includeDetails && params.lastToolError.error

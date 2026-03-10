@@ -3,6 +3,7 @@ import { shortenHomeInString, shortenHomePath } from "../utils.js";
 
 type ToolAggregateOptions = {
   markdown?: boolean;
+  args?: unknown;
 };
 
 export function shortenPath(p: string): string {
@@ -22,7 +23,7 @@ export function formatToolAggregate(
   options?: ToolAggregateOptions,
 ): string {
   const filtered = (metas ?? []).filter(Boolean).map(shortenMeta);
-  const display = resolveToolDisplay({ name: toolName });
+  const display = resolveToolDisplay({ name: toolName, args: options?.args });
   const prefix = `${display.emoji} ${display.label}`;
   if (!filtered.length) {
     return prefix;

@@ -26,13 +26,14 @@ export type ToolErrorSummary = {
 
 export type ToolCallSummary = {
   meta?: string;
+  args?: unknown;
   mutatingAction: boolean;
   actionFingerprint?: string;
 };
 
 export type EmbeddedPiSubscribeState = {
   assistantTexts: string[];
-  toolMetas: Array<{ toolName?: string; meta?: string }>;
+  toolMetas: Array<{ toolName?: string; meta?: string; args?: unknown }>;
   toolMetaById: Map<string, ToolCallSummary>;
   toolSummaryById: Set<string>;
   lastToolError?: ToolErrorSummary;
@@ -91,7 +92,7 @@ export type EmbeddedPiSubscribeContext = {
 
   shouldEmitToolResult: () => boolean;
   shouldEmitToolOutput: () => boolean;
-  emitToolSummary: (toolName?: string, meta?: string) => void;
+  emitToolSummary: (toolName?: string, meta?: string, args?: unknown) => void;
   emitToolOutput: (toolName?: string, meta?: string, output?: string) => void;
   stripBlockTags: (
     text: string,
@@ -167,7 +168,7 @@ export type ToolHandlerContext = {
   flushBlockReplyBuffer: () => void;
   shouldEmitToolResult: () => boolean;
   shouldEmitToolOutput: () => boolean;
-  emitToolSummary: (toolName?: string, meta?: string) => void;
+  emitToolSummary: (toolName?: string, meta?: string, args?: unknown) => void;
   emitToolOutput: (toolName?: string, meta?: string, output?: string) => void;
   trimMessagingToolSent: () => void;
 };

@@ -50,6 +50,7 @@ function buildToolCallSummary(toolName: string, args: unknown, meta?: string): T
   const mutation = buildToolMutationState(toolName, args, meta);
   return {
     meta,
+    args,
     mutatingAction: mutation.mutatingAction,
     actionFingerprint: mutation.actionFingerprint,
   };
@@ -360,7 +361,7 @@ export async function handleToolExecutionStart(
     !ctx.state.toolSummaryById.has(toolCallId)
   ) {
     ctx.state.toolSummaryById.add(toolCallId);
-    ctx.emitToolSummary(toolName, meta);
+    ctx.emitToolSummary(toolName, meta, args);
   }
 
   // Track messaging tool sends (pending until confirmed in tool_execution_end).
@@ -440,7 +441,8 @@ export async function handleToolExecutionEnd(
   toolStartData.delete(toolStartKey);
   const callSummary = ctx.state.toolMetaById.get(toolCallId);
   const meta = callSummary?.meta;
-  ctx.state.toolMetas.push({ toolName, meta });
+  const args = callSummary?.args;
+  ctx.state.toolMetas.push({ toolName, meta, args });
   ctx.state.toolMetaById.delete(toolCallId);
   ctx.state.toolSummaryById.delete(toolCallId);
   if (isToolError) {
@@ -448,6 +450,7 @@ export async function handleToolExecutionEnd(
     ctx.state.lastToolError = {
       toolName,
       meta,
+      args,
       error: errorMessage,
       mutatingAction: callSummary?.mutatingAction,
       actionFingerprint: callSummary?.actionFingerprint,

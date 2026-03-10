@@ -348,9 +348,10 @@ export function subscribeEmbeddedPiSession(params: SubscribeEmbeddedPiSessionPar
       // ignore tool result delivery failures
     }
   };
-  const emitToolSummary = (toolName?: string, meta?: string) => {
+  const emitToolSummary = (toolName?: string, meta?: string, args?: unknown) => {
     const agg = formatToolAggregate(toolName, meta ? [meta] : undefined, {
       markdown: useMarkdown,
+      args,
     });
     emitToolResultMessage(toolName, agg);
   };
