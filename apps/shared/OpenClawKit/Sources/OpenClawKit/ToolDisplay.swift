@@ -52,8 +52,8 @@ public enum ToolDisplayRegistry {
         let fallback = self.config.fallback
 
         let emoji = spec?.emoji ?? fallback?.emoji ?? "🧩"
-        let title = spec?.title ?? self.titleFromName(trimmedName)
-        let label = spec?.label ?? trimmedName
+        let title = self.resolveTitle(key: key, name: trimmedName, spec: spec, args: args)
+        let label = spec?.label ?? title
 
         let actionRaw = self.valueForKeyPath(args, path: "action") as? String
         let action = actionRaw?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -87,6 +87,64 @@ public enum ToolDisplayRegistry {
             label: label,
             verb: verb,
             detail: detail)
+    }
+
+    private static func resolveTitle(
+        key: String,
+        name: String,
+        spec: ToolDisplaySpec?,
+        args: AnyCodable?
+    ) -> String
+    {
+        let baseTitle = spec?.title ?? self.titleFromName(name)
+        guard key == "process",
+              let actionTitle = self.resolveProcessActionTitle(args)
+        else {
+            return baseTitle
+        }
+        return "\(baseTitle) \(actionTitle)"
+    }
+
+    private static func resolveProcessActionTitle(_ args: AnyCodable?) -> String? {
+        guard let actionRaw = (self.valueForKeyPath(args, path: "action") as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            !actionRaw.isEmpty
+        else {
+            return nil
+        }
+
+        if actionRaw != "write" {
+            return self.normalizeActionTitle(actionRaw)
+        }
+
+        guard let dataRaw = (self.valueForKeyPath(args, path: "data") as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            !dataRaw.isEmpty
+        else {
+            return self.normalizeActionTitle(actionRaw)
+        }
+
+        if let data = dataRaw.data(using: .utf8),
+           let parsed = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let innerActionRaw = parsed["action"] as? String
+        {
+            let inner = innerActionRaw.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !inner.isEmpty {
+                return self.normalizeActionTitle(inner)
+            }
+        }
+
+        return self.normalizeActionTitle(actionRaw)
+    }
+
+    private static func normalizeActionTitle(_ action: String) -> String? {
+        let normalized = action
+            .replacingOccurrences(of: "_", with: " ")
+            .replacingOccurrences(of: "-", with: " ")
+            .replacingOccurrences(of: ".", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else { return nil }
+        return self.titleFromName(normalized)
     }
 
     private static func loadConfig() -> ToolDisplayConfig {

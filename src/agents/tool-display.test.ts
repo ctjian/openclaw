@@ -294,4 +294,42 @@ describe("tool display details", () => {
     expect(nodeCheckDetail).toContain("check js syntax for /tmp/test.js");
     expect(nodeShortCheckDetail).toContain("check js syntax for /tmp/test.js");
   });
+
+  it("shows process action in title/label", () => {
+    const display = resolveToolDisplay({
+      name: "process",
+      args: { action: "poll", sessionId: "s-1" },
+    });
+
+    expect(display.title).toBe("Process Poll");
+    expect(display.label).toBe("Process Poll");
+  });
+
+  it("prefers nested data.action for process write title", () => {
+    const display = resolveToolDisplay({
+      name: "process",
+      args: {
+        action: "write",
+        data: JSON.stringify({ action: "navigate", targetUrl: "https://example.com" }),
+        sessionId: "s-2",
+      },
+    });
+
+    expect(display.title).toBe("Process Navigate");
+    expect(display.label).toBe("Process Navigate");
+  });
+
+  it("falls back to outer process action when write data is invalid", () => {
+    const display = resolveToolDisplay({
+      name: "process",
+      args: {
+        action: "write",
+        data: "{not-json",
+        sessionId: "s-3",
+      },
+    });
+
+    expect(display.title).toBe("Process Write");
+    expect(display.label).toBe("Process Write");
+  });
 });

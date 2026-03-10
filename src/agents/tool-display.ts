@@ -55,6 +55,70 @@ const DETAIL_LABEL_OVERRIDES: Record<string, string> = {
 };
 const MAX_DETAIL_ENTRIES = 8;
 
+function normalizeActionForTitle(action: string | undefined): string | undefined {
+  const trimmed = action?.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const normalized = trimmed.replace(/[_-]+/g, " ").replace(/\./g, " ").trim();
+  if (!normalized) {
+    return undefined;
+  }
+  return defaultTitle(normalized);
+}
+
+function resolveProcessTitleAction(args: unknown): string | undefined {
+  if (!args || typeof args !== "object") {
+    return undefined;
+  }
+
+  const record = args as Record<string, unknown>;
+  const actionRaw = typeof record.action === "string" ? record.action.trim() : "";
+  if (!actionRaw) {
+    return undefined;
+  }
+
+  if (actionRaw !== "write") {
+    return normalizeActionForTitle(actionRaw);
+  }
+
+  const dataRaw = typeof record.data === "string" ? record.data.trim() : "";
+  if (!dataRaw) {
+    return normalizeActionForTitle(actionRaw);
+  }
+
+  try {
+    const parsed = JSON.parse(dataRaw) as unknown;
+    if (parsed && typeof parsed === "object") {
+      const innerAction = (parsed as Record<string, unknown>).action;
+      if (typeof innerAction === "string" && innerAction.trim()) {
+        return normalizeActionForTitle(innerAction);
+      }
+    }
+  } catch {
+    // Ignore malformed JSON and fall back to the outer action.
+  }
+
+  return normalizeActionForTitle(actionRaw);
+}
+
+function resolveToolTitle(params: {
+  key: string;
+  name: string;
+  spec?: ToolDisplaySpec;
+  args?: unknown;
+}): string {
+  const baseTitle = params.spec?.title ?? defaultTitle(params.name);
+  if (params.key !== "process") {
+    return baseTitle;
+  }
+  const processActionTitle = resolveProcessTitleAction(params.args);
+  if (!processActionTitle) {
+    return baseTitle;
+  }
+  return `${baseTitle} ${processActionTitle}`;
+}
+
 export function resolveToolDisplay(params: {
   name?: string;
   args?: unknown;
@@ -64,7 +128,7 @@ export function resolveToolDisplay(params: {
   const key = name.toLowerCase();
   const spec = TOOL_MAP[key];
   const emoji = spec?.emoji ?? FALLBACK.emoji ?? "🧩";
-  const title = spec?.title ?? defaultTitle(name);
+  const title = resolveToolTitle({ key, name, spec, args: params.args });
   const label = spec?.label ?? title;
   let { verb, detail } = resolveToolVerbAndDetailForArgs({
     toolKey: key,
