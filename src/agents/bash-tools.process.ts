@@ -71,7 +71,7 @@ const processSchema = Type.Object({
   ),
 });
 
-const MAX_POLL_WAIT_MS = 120_000;
+const MAX_POLL_WAIT_MS = 10_000;
 
 function resolvePollWaitMs(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value)) {
