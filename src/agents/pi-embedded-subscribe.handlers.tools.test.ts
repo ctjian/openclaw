@@ -100,25 +100,61 @@ describe("handleToolExecutionStart read path checks", () => {
         }),
     );
 
+    const args = { action: "kill", pid: 1234 };
     const evt: ToolExecutionStartEvent = {
       type: "tool_execution_start",
-      toolName: "exec",
+      toolName: "process",
       toolCallId: "tool-await-flush",
-      args: { command: "echo hi" },
+      args,
     };
 
     const pending = handleToolExecutionStart(ctx, evt);
     // Let the async function reach the awaited flush Promise.
     await Promise.resolve();
 
-    // If flush isn't awaited, tool metadata would already be recorded here.
-    expect(ctx.state.toolMetaById.has("tool-await-flush")).toBe(false);
+    // Metadata should already be tracked before awaited flush, so end can use it.
+    expect(ctx.state.toolMetaById.has("tool-await-flush")).toBe(true);
     expect(releaseFlush).toBeTypeOf("function");
+
+    await handleToolExecutionEnd(ctx, {
+      type: "tool_execution_end",
+      toolName: "process",
+      toolCallId: "tool-await-flush",
+      isError: false,
+      result: { ok: true },
+    } as ToolExecutionEndEvent);
+
+    expect(ctx.state.toolMetas).toHaveLength(1);
+    expect(ctx.state.toolMetas[0]).toMatchObject({ toolName: "process", args });
 
     releaseFlush?.();
     await pending;
 
-    expect(ctx.state.toolMetaById.has("tool-await-flush")).toBe(true);
+    expect(ctx.state.toolMetaById.has("tool-await-flush")).toBe(false);
+  });
+
+  it("includes args in onAgentEvent start payload", async () => {
+    const { ctx } = createTestContext();
+    const onAgentEvent = vi.fn();
+    ctx.params.onAgentEvent = onAgentEvent;
+    const args = { action: "list", pid: 42 };
+
+    await handleToolExecutionStart(ctx, {
+      type: "tool_execution_start",
+      toolName: "process",
+      toolCallId: "tool-start-event-args",
+      args,
+    } as ToolExecutionStartEvent);
+
+    expect(onAgentEvent).toHaveBeenCalledWith({
+      stream: "tool",
+      data: {
+        phase: "start",
+        name: "process",
+        toolCallId: "tool-start-event-args",
+        args,
+      },
+    });
   });
 });
 

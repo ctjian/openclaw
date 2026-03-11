@@ -300,20 +300,22 @@ export async function handleToolExecutionStart(
   ctx: ToolHandlerContext,
   evt: AgentEvent & { toolName: string; toolCallId: string; args: unknown },
 ) {
-  // Flush pending block replies to preserve message boundaries before tool execution.
-  ctx.flushBlockReplyBuffer();
-  if (ctx.params.onBlockReplyFlush) {
-    await ctx.params.onBlockReplyFlush();
-  }
-
   const rawToolName = String(evt.toolName);
   const toolName = normalizeToolName(rawToolName);
   const toolCallId = String(evt.toolCallId);
   const args = evt.args;
   const runId = ctx.params.runId;
 
-  // Track start time and args for after_tool_call hook
+  // Record start metadata before awaits so end events can still recover args/meta.
   toolStartData.set(buildToolStartKey(runId, toolCallId), { startTime: Date.now(), args });
+  const meta = extendExecMeta(toolName, args, inferToolMetaFromArgs(toolName, args));
+  ctx.state.toolMetaById.set(toolCallId, buildToolCallSummary(toolName, args, meta));
+
+  // Flush pending block replies to preserve message boundaries before tool execution.
+  ctx.flushBlockReplyBuffer();
+  if (ctx.params.onBlockReplyFlush) {
+    await ctx.params.onBlockReplyFlush();
+  }
 
   if (toolName === "read") {
     const record = args && typeof args === "object" ? (args as Record<string, unknown>) : {};
@@ -332,8 +334,6 @@ export async function handleToolExecutionStart(
     }
   }
 
-  const meta = extendExecMeta(toolName, args, inferToolMetaFromArgs(toolName, args));
-  ctx.state.toolMetaById.set(toolCallId, buildToolCallSummary(toolName, args, meta));
   ctx.log.debug(
     `embedded run tool start: runId=${ctx.params.runId} tool=${toolName} toolCallId=${toolCallId}`,
   );
@@ -352,7 +352,7 @@ export async function handleToolExecutionStart(
   // Best-effort typing signal; do not block tool summaries on slow emitters.
   void ctx.params.onAgentEvent?.({
     stream: "tool",
-    data: { phase: "start", name: toolName, toolCallId },
+    data: { phase: "start", name: toolName, toolCallId, args: args as Record<string, unknown> },
   });
 
   if (
