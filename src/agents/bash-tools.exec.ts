@@ -156,7 +156,7 @@ export function createExecTool(
     defaults?.backgroundMs ?? readEnvInt("PI_BASH_YIELD_MS"),
     10_000,
     10,
-    120_000,
+    10_000,
   );
   const allowBackground = defaults?.allowBackground ?? true;
   const defaultTimeoutSec =
@@ -238,12 +238,7 @@ export function createExecTool(
       const yieldWindow = allowBackground
         ? backgroundRequested
           ? 0
-          : clampWithDefault(
-              params.yieldMs ?? defaultBackgroundMs,
-              defaultBackgroundMs,
-              10,
-              120_000,
-            )
+          : clampWithDefault(params.yieldMs ?? defaultBackgroundMs, defaultBackgroundMs, 10, 10_000)
         : null;
       const elevatedDefaults = defaults?.elevated;
       const elevatedAllowed = Boolean(elevatedDefaults?.enabled && elevatedDefaults.allowed);
