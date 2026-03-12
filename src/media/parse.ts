@@ -17,6 +17,8 @@ function cleanCandidate(raw: string) {
 const WINDOWS_DRIVE_RE = /^[a-zA-Z]:[\\/]/;
 const SCHEME_RE = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;
 const HAS_FILE_EXT = /\.\w{1,10}$/;
+const IMAGE_EXT_RE = /\.(png|jpe?g|webp|gif|bmp|svg)$/i;
+const HAS_QUERY_RE = /[?#]/;
 
 // Recognize local file path patterns. Security validation is deferred to the
 // load layer (loadWebMedia / resolveSandboxedMediaSource) which has the context
@@ -77,6 +79,59 @@ function unwrapQuoted(value: string): string | undefined {
     return undefined;
   }
   return trimmed.slice(1, -1).trim();
+}
+
+function isImagePath(candidate: string): boolean {
+  if (!IMAGE_EXT_RE.test(candidate)) {
+    return false;
+  }
+  if (HAS_QUERY_RE.test(candidate)) {
+    return false;
+  }
+  return true;
+}
+
+function extractImageCandidates(raw: string): string[] {
+  if (!raw.trim()) {
+    return [];
+  }
+
+  const results = new Set<string>();
+  const hasFenceMarkers = mayContainFenceMarkers(raw);
+  const fenceSpans = hasFenceMarkers ? parseFenceSpans(raw) : [];
+
+  const tokenRe =
+    /(?<![\w.-])(https?:\/\/[^\s"'`<>]+|\.{0,2}\/[^\s"'`<>]+|~\/[^\s"'`<>]+|[A-Za-z]:\\[^\s"'`<>]+|\\\\[^\s"'`<>]+)(?![\w.-])/g;
+
+  const lines = raw.split("\n");
+  let lineOffset = 0;
+  for (const line of lines) {
+    if (hasFenceMarkers && isInsideFence(fenceSpans, lineOffset)) {
+      lineOffset += line.length + 1;
+      continue;
+    }
+
+    let match: RegExpExecArray | null;
+    while ((match = tokenRe.exec(line)) !== null) {
+      const token = cleanCandidate(match[1]);
+      const normalized = normalizeMediaSource(token);
+      if (!isValidMedia(normalized, { allowSpaces: false })) {
+        continue;
+      }
+      if (!isImagePath(normalized)) {
+        continue;
+      }
+      results.add(normalized);
+    }
+
+    lineOffset += line.length + 1;
+  }
+
+  return Array.from(results);
+}
+
+export function extractMediaFromText(raw: string): string[] {
+  return extractImageCandidates(raw);
 }
 
 function mayContainFenceMarkers(input: string): boolean {

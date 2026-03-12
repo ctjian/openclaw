@@ -1,4 +1,5 @@
 import { logVerbose } from "../../globals.js";
+import { extractMediaFromText } from "../../media/parse.js";
 import { SILENT_REPLY_TOKEN } from "../tokens.js";
 import type { BlockReplyContext, ReplyPayload } from "../types.js";
 import type { BlockReplyPipeline } from "./block-reply-pipeline.js";
@@ -34,12 +35,20 @@ export function normalizeReplyPayloadDirectives(params: {
       })
     : undefined;
 
-  let text = parsed ? parsed.text || undefined : params.payload.text || undefined;
+  const originalText = params.payload.text;
+  let text = parsed ? parsed.text || undefined : originalText || undefined;
   if (params.trimLeadingWhitespace && text) {
     text = text.trimStart() || undefined;
   }
 
-  const mediaUrls = params.payload.mediaUrls ?? parsed?.mediaUrls;
+  let mediaUrls = params.payload.mediaUrls ?? parsed?.mediaUrls;
+  if (!mediaUrls || mediaUrls.length === 0) {
+    const extracted = extractMediaFromText(sourceText);
+    if (extracted.length > 0) {
+      mediaUrls = extracted;
+      text = originalText || text;
+    }
+  }
   const mediaUrl = params.payload.mediaUrl ?? parsed?.mediaUrl ?? mediaUrls?.[0];
 
   return {
