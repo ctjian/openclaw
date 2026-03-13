@@ -1,4 +1,4 @@
-import { extractMediaFromText, splitMediaFromOutput } from "../../media/parse.js";
+import { splitMediaFromOutput } from "../../media/parse.js";
 import { parseInlineDirectives } from "../../utils/directive-tags.js";
 import { isSilentReplyText, SILENT_REPLY_TOKEN } from "../tokens.js";
 
@@ -18,6 +18,9 @@ export function parseReplyDirectives(
   options: { currentMessageId?: string; silentToken?: string } = {},
 ): ReplyDirectiveParseResult {
   const split = splitMediaFromOutput(raw);
+  const hasExplicitMedia = Boolean(
+    split.mediaUrl || (split.mediaUrls && split.mediaUrls.length > 0),
+  );
   let text = split.text ?? "";
 
   const replyParsed = parseInlineDirectives(text, {
@@ -36,14 +39,9 @@ export function parseReplyDirectives(
     text = "";
   }
 
-  const inferredMediaUrl =
-    !split.mediaUrl && (!split.mediaUrls || split.mediaUrls.length === 0)
-      ? inferSingleMediaUrl(text)
-      : undefined;
-
-  if (inferredMediaUrl) {
-    text = "";
-  }
+  const inferredMediaUrl = !hasExplicitMedia ? inferSingleMediaUrl(text) : undefined;
+  // Preserve visible text for auto-inferred media so path/url-only responses
+  // still have a textual fallback if media path normalization later fails.
 
   return {
     text,
@@ -65,13 +63,12 @@ function inferSingleMediaUrl(text: string): string | undefined {
   if (trimmed.includes("\n")) {
     return undefined;
   }
-  const candidates = extractMediaFromText(trimmed);
-  if (candidates.length !== 1) {
+  // Reuse MEDIA parsing semantics so plain `path` / `url` inputs and explicit
+  // `MEDIA:<source>` follow exactly the same extraction behavior.
+  const reparsed = splitMediaFromOutput(`MEDIA:${trimmed}`);
+  const inferred = reparsed.mediaUrl?.trim();
+  if (!inferred || reparsed.text.trim().length > 0) {
     return undefined;
   }
-  const candidate = candidates[0]?.trim();
-  if (!candidate || candidate !== trimmed) {
-    return undefined;
-  }
-  return candidate;
+  return inferred;
 }
