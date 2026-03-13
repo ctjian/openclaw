@@ -79,6 +79,13 @@ describe("markdownToTelegramHtml", () => {
     expect(res).toBe('<a href="https://example.com"><b>bold</b></a>');
   });
 
+  it("does not render markdown image alt text", () => {
+    const res = markdownToTelegramHtml("Look ![搜索结果截图](/tmp/screenshot.png) done");
+    expect(res).toContain("Look");
+    expect(res).toContain("done");
+    expect(res).not.toContain("搜索结果截图");
+  });
+
   it("wraps punctuated file references in code tags", () => {
     const res = markdownToTelegramHtml("See README.md. Also (backup.sh).");
     expect(res).toContain("<code>README.md</code>.");

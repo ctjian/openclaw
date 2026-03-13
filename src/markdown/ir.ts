@@ -608,7 +608,8 @@ function renderTokens(tokens: MarkdownToken[], state: RenderState): void {
         handleLinkClose(state);
         break;
       case "image":
-        appendText(state, token.content ?? "");
+        // Telegram does not support inline markdown images in message text.
+        // Keep image handling in media extraction and avoid leaking alt text.
         break;
       case "softbreak":
       case "hardbreak":
